@@ -26,6 +26,8 @@ RUN dotnet publish "Ape.Volo.Api.csproj" -c Release -o /app/publish
 
 # 运行阶段
 FROM base AS final
+# 安装字体支持 (fontconfig 和 Liberation 字体替代 Arial)
+RUN apt-get update && apt-get install -y fontconfig fonts-liberation && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "Ape.Volo.Api.dll"]
