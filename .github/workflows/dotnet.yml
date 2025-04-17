@@ -112,11 +112,19 @@ jobs:
               id: generate_notes
               shell: bash
               run: |
-                  # 获取上一个 tag 并生成日志
-                  PREV_TAG=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^")
-                  LOG=$(git log "$PREV_TAG".."${GITHUB_REF_NAME}" --pretty=format:"- %s")
+                  # 尝试获取上一个 tag，如果不存在则只获取当前 tag 的日志
+                  if git rev-parse "${GITHUB_REF_NAME}^" >/dev/null 2>&1 && git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" >/dev/null 2>&1; then
+                    PREV_TAG=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^")
+                    LOG=$(git log "$PREV_TAG".."${GITHUB_REF_NAME}" --pretty=format:"- %s")
+                  else
+                    LOG=$(git log "${GITHUB_REF_NAME}" --pretty=format:"- %s")
+                  fi
                   # 将日志写入步骤输出 notes
-                  printf 'notes<<EOF\n## Changelog\n%s\nEOF\n' "$LOG" >> $GITHUB_OUTPUT
+                  printf 'notes<<EOF
+                  ## Changelog
+                  %s
+                  EOF
+                  ' "$LOG" >> $GITHUB_OUTPUT
 
             - name: Create GitHub Release
               id: create_release
