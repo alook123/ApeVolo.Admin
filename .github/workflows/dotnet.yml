@@ -81,13 +81,10 @@ jobs:
                   chmod 600 ~/.ssh/known_hosts
 
             - name: Deploy to server
-                run: |
+              run: |
                   docker save apevolo-api:latest | ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "docker load"
-                  ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-                    "docker stop apevolo-api || true && \
-                     docker rm apevolo-api || true"
-                  ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-                    "docker run -d -p 80:8002 --name apevolo-api apevolo-api:latest"
+                  ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "docker stop apevolo-api || true && docker rm apevolo-api || true"
+                  ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "docker run -d -p 80:8002 --name apevolo-api apevolo-api:latest"
 
     create-release:
         needs: build
