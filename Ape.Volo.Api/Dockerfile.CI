@@ -1,0 +1,9 @@
+# Dockerfile-CI: 基于 CI 发布产物构建镜像
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+WORKDIR /app
+EXPOSE 8002
+
+# 将 CI 中 dotnet publish 生成的发布文件拷贝进镜像
+COPY . .
+
+ENTRYPOINT ["dotnet", "Ape.Volo.Api.dll"]
