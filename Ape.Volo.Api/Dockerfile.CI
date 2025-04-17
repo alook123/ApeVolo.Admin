@@ -6,4 +6,7 @@ EXPOSE 8002
 # 将 CI 中 dotnet publish 生成的发布文件拷贝进镜像
 COPY . .
 
+# 安装字体支持 (fontconfig 和 Liberation 字体替代 Arial)
+RUN apt-get update && apt-get install -y fontconfig fonts-liberation && rm -rf /var/lib/apt/lists/*
+
 ENTRYPOINT ["dotnet", "Ape.Volo.Api.dll"]
