@@ -1,8 +1,11 @@
 name: .NET CI/CD with Docker Deployment
 
 on:
-    push:
-        branches: ['main', 'master']
+    workflow_run:
+        workflows:
+            - .NET CI/CD Build and Upload Artifacts
+        types:
+            - completed
 
 jobs:
     build-and-deploy:
