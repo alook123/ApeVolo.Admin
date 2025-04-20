@@ -84,7 +84,7 @@ jobs:
               run: |
                   docker save apevolo-api:latest | ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "docker load"
                   ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "docker stop apevolo-api || true && docker rm apevolo-api || true"
-                  ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "docker run -d -p 80:8002 -v /data/apevolo/appsettings.json:/app/appsettings.json \
+                  ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "docker run -d -p 8002:8002 -v /data/apevolo/appsettings.json:/app/appsettings.json \
                   --name apevolo-api apevolo-api:latest"
 
     create-release:
