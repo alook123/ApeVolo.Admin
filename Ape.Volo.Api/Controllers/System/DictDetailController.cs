@@ -1,11 +1,15 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading.Tasks;
 using Ape.Volo.Api.Controllers.Base;
 using Ape.Volo.Common.Extensions;
 using Ape.Volo.Common.Model;
-using Ape.Volo.IBusiness.Dto.System;
-using Ape.Volo.IBusiness.Interface.System;
-using Ape.Volo.IBusiness.QueryModel;
+using Ape.Volo.IBusiness.System;
+using Ape.Volo.SharedModel.Dto.Core.System.Dict;
+using Ape.Volo.SharedModel.Queries.Common;
+using Ape.Volo.SharedModel.Queries.System;
+using Ape.Volo.ViewModel.Core.System.Dict;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ape.Volo.Api.Controllers.System;
@@ -13,23 +17,21 @@ namespace Ape.Volo.Api.Controllers.System;
 /// <summary>
 /// 字典详情管理
 /// </summary>
-[Area("字典详情管理")]
+[Area("Area.DictionaryDetailManagement")]
 [Route("/api/dictDetail", Order = 8)]
 public class DictDetailController : BaseApiController
 {
     #region 字段
 
     private readonly IDictDetailService _dictDetailService;
-    private readonly IDictService _dictService;
 
     #endregion
 
     #region 构造函数
 
-    public DictDetailController(IDictDetailService dictDetailService, IDictService dictService)
+    public DictDetailController(IDictDetailService dictDetailService)
     {
         _dictDetailService = dictDetailService;
-        _dictService = dictService;
     }
 
     #endregion
@@ -43,7 +45,8 @@ public class DictDetailController : BaseApiController
     /// <returns></returns>
     [HttpPost]
     [Route("create")]
-    [Description("创建")]
+    [Description("Sys.Create")]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Create(
         [FromBody] CreateUpdateDictDetailDto createUpdateDictDto)
     {
@@ -65,7 +68,8 @@ public class DictDetailController : BaseApiController
     /// <returns></returns>
     [HttpPut]
     [Route("edit")]
-    [Description("编辑")]
+    [Description("Sys.Edit")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> Update(
         [FromBody] CreateUpdateDictDetailDto createUpdateDictDetailDto)
     {
@@ -86,7 +90,8 @@ public class DictDetailController : BaseApiController
     /// <returns></returns>
     [HttpDelete]
     [Route("delete")]
-    [Description("删除")]
+    [Description("Sys.Delete")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Delete(long id)
     {
         if (id.IsNullOrEmpty())
@@ -106,7 +111,8 @@ public class DictDetailController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("query")]
-    [Description("查询")]
+    [Description("Sys.Query")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm<List<DictDetailVo>>))]
     public async Task<ActionResult> Query(DictDetailQueryCriteria dictDetailQueryCriteria, Pagination pagination)
     {
         var list = await _dictDetailService.QueryAsync(dictDetailQueryCriteria, pagination);

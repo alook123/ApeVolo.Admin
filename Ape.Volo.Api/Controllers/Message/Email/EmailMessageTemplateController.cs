@@ -1,12 +1,15 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Ape.Volo.Api.Controllers.Base;
 using Ape.Volo.Common.Extensions;
 using Ape.Volo.Common.Model;
-using Ape.Volo.IBusiness.Dto.Message.Email;
-using Ape.Volo.IBusiness.Interface.Message.Email;
-using Ape.Volo.IBusiness.QueryModel;
-using Ape.Volo.IBusiness.RequestModel;
+using Ape.Volo.IBusiness.Message.Email;
+using Ape.Volo.SharedModel.Dto.Core.Message.Email;
+using Ape.Volo.SharedModel.Queries.Common;
+using Ape.Volo.SharedModel.Queries.Message;
+using Ape.Volo.ViewModel.Core.Message.Email;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ape.Volo.Api.Controllers.Message.Email;
@@ -14,7 +17,7 @@ namespace Ape.Volo.Api.Controllers.Message.Email;
 /// <summary>
 /// 邮件模板管理
 /// </summary>
-[Area("邮件模板管理")]
+[Area("Area.EmailMessageTemplateManagement")]
 [Route("/api/email/template", Order = 18)]
 public class EmailMessageTemplateController : BaseApiController
 {
@@ -42,7 +45,8 @@ public class EmailMessageTemplateController : BaseApiController
     /// <returns></returns>
     [HttpPost]
     [Route("create")]
-    [Description("创建")]
+    [Description("Sys.Create")]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Create(
         [FromBody] CreateUpdateEmailMessageTemplateDto createUpdateEmailMessageTemplateDto)
     {
@@ -63,7 +67,8 @@ public class EmailMessageTemplateController : BaseApiController
     /// <returns></returns>
     [HttpPut]
     [Route("edit")]
-    [Description("编辑")]
+    [Description("Sys.Edit")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> Update(
         [FromBody] CreateUpdateEmailMessageTemplateDto createUpdateEmailMessageTemplateDto)
     {
@@ -84,7 +89,8 @@ public class EmailMessageTemplateController : BaseApiController
     /// <returns></returns>
     [HttpDelete]
     [Route("delete")]
-    [Description("删除")]
+    [Description("Sys.Delete")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Delete([FromBody] IdCollection idCollection)
     {
         if (!ModelState.IsValid)
@@ -105,7 +111,8 @@ public class EmailMessageTemplateController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("query")]
-    [Description("查询")]
+    [Description("Sys.Query")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm<List<EmailMessageTemplateVo>>))]
     public async Task<ActionResult> Query(EmailMessageTemplateQueryCriteria messageTemplateQueryCriteria,
         Pagination pagination)
     {

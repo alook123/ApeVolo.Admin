@@ -1,18 +1,22 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Ape.Volo.Api.Controllers.Base;
 using Ape.Volo.Common.Attributes;
 using Ape.Volo.Common.Model;
-using Ape.Volo.IBusiness.Interface.Monitor;
-using Ape.Volo.IBusiness.QueryModel;
+using Ape.Volo.IBusiness.Monitor;
+using Ape.Volo.SharedModel.Queries.Common;
+using Ape.Volo.SharedModel.Queries.System;
+using Ape.Volo.ViewModel.Core.Monitor;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ape.Volo.Api.Controllers.Monitor;
 
 /// <summary>
-/// 审计管理
+/// 审计日志管理
 /// </summary>
-[Area("审计管理")]
+[Area("Area.AuditLogManagement")]
 [Route("/api/auditing", Order = 13)]
 public class AuditingController : BaseApiController
 {
@@ -41,8 +45,9 @@ public class AuditingController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("query")]
-    [Description("查询")]
+    [Description("Sys.Query")]
     [NotAudit]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm<List<AuditLogVo>>))]
     public async Task<ActionResult> Query(LogQueryCriteria logQueryCriteria,
         Pagination pagination)
     {
@@ -59,8 +64,9 @@ public class AuditingController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("current")]
-    [Description("用户行为")]
+    [Description("Action.UserConduct")]
     [NotAudit]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm<List<AuditLogVo>>))]
     public async Task<ActionResult> FindListByCurrent(Pagination pagination)
     {
         var auditInfos = await _auditInfoService.QueryByCurrentAsync(pagination);

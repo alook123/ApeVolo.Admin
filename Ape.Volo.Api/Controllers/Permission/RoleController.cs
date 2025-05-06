@@ -1,15 +1,17 @@
-using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Ape.Volo.Api.Controllers.Base;
-using Ape.Volo.Common;
 using Ape.Volo.Common.Extensions;
 using Ape.Volo.Common.Helper;
 using Ape.Volo.Common.Model;
-using Ape.Volo.IBusiness.Dto.Permission;
-using Ape.Volo.IBusiness.Interface.Permission;
-using Ape.Volo.IBusiness.QueryModel;
-using Ape.Volo.IBusiness.RequestModel;
+using Ape.Volo.Core;
+using Ape.Volo.IBusiness.Permission;
+using Ape.Volo.SharedModel.Dto.Core.Permission.Role;
+using Ape.Volo.SharedModel.Queries.Common;
+using Ape.Volo.SharedModel.Queries.Permission;
+using Ape.Volo.ViewModel.Core.Permission.Role;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ape.Volo.Api.Controllers.Permission;
@@ -17,7 +19,7 @@ namespace Ape.Volo.Api.Controllers.Permission;
 /// <summary>
 /// 角色管理
 /// </summary>
-[Area("角色管理")]
+[Area("Area.RoleManagement")]
 [Route("/api/role", Order = 2)]
 public class RoleController : BaseApiController
 {
@@ -49,7 +51,8 @@ public class RoleController : BaseApiController
     /// <returns></returns>
     [HttpPost]
     [Route("create")]
-    [Description("创建")]
+    [Description("Sys.Create")]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Create([FromBody] CreateUpdateRoleDto createUpdateRoleDto)
     {
         if (!ModelState.IsValid)
@@ -68,8 +71,9 @@ public class RoleController : BaseApiController
     /// <param name="createUpdateRoleDto"></param>
     /// <returns></returns>
     [HttpPut]
-    [Description("编辑")]
+    [Description("Sys.Edit")]
     [Route("edit")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> Update([FromBody] CreateUpdateRoleDto createUpdateRoleDto)
     {
         if (!ModelState.IsValid)
@@ -88,8 +92,9 @@ public class RoleController : BaseApiController
     /// <param name="idCollection"></param>
     /// <returns></returns>
     [HttpDelete]
-    [Description("删除")]
+    [Description("Sys.Delete")]
     [Route("delete")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Delete([FromBody] IdCollection idCollection)
     {
         if (!ModelState.IsValid)
@@ -109,18 +114,18 @@ public class RoleController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("querySingle")]
-    [Description("查看指定角色")]
-    public async Task<ActionResult> QuerySingle(string id)
+    [Description("Action.ViewSingleRole")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(RoleVo))]
+    public async Task<ActionResult> QuerySingle(long id)
     {
         if (id.IsNullOrEmpty())
         {
             return Error("id cannot be empty");
         }
 
-        var newId = Convert.ToInt64(id);
-        var role = await _roleService.TableWhere(x => x.Id == newId).Includes(x => x.MenuList).Includes(x => x.Apis)
+        var role = await _roleService.TableWhere(x => x.Id == id).Includes(x => x.MenuList).Includes(x => x.Apis)
             .Includes(x => x.DepartmentList).SingleAsync();
-        return JsonContent(App.Mapper.MapTo<RoleDto>(role));
+        return JsonContent(App.Mapper.MapTo<RoleVo>(role));
     }
 
     /// <summary>
@@ -131,7 +136,8 @@ public class RoleController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("query")]
-    [Description("查询")]
+    [Description("Sys.Query")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm<List<RoleVo>>))]
     public async Task<ActionResult> Query(RoleQueryCriteria roleQueryCriteria,
         Pagination pagination)
     {
@@ -146,8 +152,9 @@ public class RoleController : BaseApiController
     /// <param name="roleQueryCriteria"></param>
     /// <returns></returns>
     [HttpGet]
-    [Description("导出")]
+    [Description("Sys.Export")]
     [Route("download")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FileContentResult))]
     public async Task<ActionResult> Download(RoleQueryCriteria roleQueryCriteria)
     {
         var roleExports = await _roleService.DownloadAsync(roleQueryCriteria);
@@ -164,7 +171,8 @@ public class RoleController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("queryAll")]
-    [Description("查询全部")]
+    [Description("Action.GetAllRole")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<RoleVo>))]
     public async Task<ActionResult> QueryAll()
     {
         var allRoles = await _roleService.QueryAllAsync();
@@ -179,14 +187,15 @@ public class RoleController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("level")]
-    [Description("当前用户等级")]
+    [Description("Action.GetRoleLevel")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(RoleLevelVo))]
     public async Task<ActionResult> GetRoleLevel(int? level)
     {
         var curLevel = await _roleService.VerificationUserRoleLevelAsync(level);
 
-        var response = new
+        var response = new RoleLevelVo
         {
-            level = curLevel
+            Level = curLevel
         };
 
         return JsonContent(response);

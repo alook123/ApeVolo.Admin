@@ -1,15 +1,16 @@
 using System;
 using System.Reflection;
-using Ape.Volo.Api.Extensions;
-using Ape.Volo.Api.Filter;
-using Ape.Volo.Api.Mapster;
-using Ape.Volo.Api.Middleware;
-using Ape.Volo.Common;
-using Ape.Volo.Common.ConfigOptions;
 using Ape.Volo.Common.Global;
 using Ape.Volo.Common.IdGenerator;
 using Ape.Volo.Common.IdGenerator.Contract;
-using Ape.Volo.Common.Internal;
+using Ape.Volo.Common.MultiLanguage.Resources;
+using Ape.Volo.Core;
+using Ape.Volo.Core.ConfigOptions;
+using Ape.Volo.Core.Internal;
+using Ape.Volo.Core.Mapping;
+using Ape.Volo.Infrastructure.ActionFilter;
+using Ape.Volo.Infrastructure.Extensions;
+using Ape.Volo.Infrastructure.Middleware;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Mapster;
@@ -47,10 +48,11 @@ builder.ConfigureApplication();
 // 配置服务
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 builder.Services.AddSingleton<IActionContextAccessor, ActionContextAccessor>();
-builder.Services.AddSingleton<IRegister, MapsterCustomMapper>();
+builder.Services.AddSingleton<IRegister, CustomMapper>();
 builder.Services.AddSingleton<IMapper, Mapper>();
-builder.Services.AddSingleton(new AppSettings(builder.Configuration));
-builder.Services.AddOptionRegister();
+builder.Services.AddSingleton(new AppSettings(builder.Configuration, builder.Environment));
+builder.Services.AddOptionRegisterSetup();
+builder.Services.AddCustomMultiLanguages();
 // builder.Services.Configure<Configs>(configuration);
 // var configs = configuration.Get<Configs>();
 builder.Services.AddSerilogSetup();
@@ -69,8 +71,6 @@ builder.Services.AddRedisInitMqSetup();
 builder.Services.AddIpStrategyRateLimitSetup();
 builder.Services.AddRabbitMqSetup();
 builder.Services.AddEventBusSetup();
-//builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
-//builder.Services.AddMultiLanguages(op => op.LocalizationType = typeof(Common.Language));
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30); // 设置会话过期时间
@@ -80,12 +80,12 @@ builder.Services.AddSession(options =>
 builder.Services.AddControllers(options =>
     {
         // 异常过滤器
-        options.Filters.Add<GlobalExceptionFilter>();
+        options.Filters.Add<ExceptionLogFilter>();
         // 审计过滤器
-        options.Filters.Add<AuditingFilter>();
+        options.Filters.Add<AuditLogFilter>();
     })
     //.AddViewLocalization(LanguageViewLocationExpanderFormat.Suffix)
-    //.AddDataAnnotationsLocalization(typeof(Common.Language))
+    .AddDataAnnotationsLocalization(typeof(Language))
     .AddControllersAsServices()
     .AddNewtonsoftJson(options =>
         {
@@ -102,6 +102,7 @@ builder.Services.AddIpSearcherSetup();
 
 // 配置中间件
 var app = builder.Build();
+
 app.ConfigureApplication();
 app.ApplicationStartedNotifier();
 
@@ -109,10 +110,13 @@ app.ApplicationStartedNotifier();
 var mapper = app.Services.GetRequiredService<IRegister>();
 TypeAdapterConfig.GlobalSettings.Apply(mapper);
 
+//多语言请求扩展
+app.UseCustomRequestLocalization();
+
 //IP限流
 app.UseIpLimitMiddleware();
-//var locOptions = app.Services.GetService<IOptions<RequestLocalizationOptions>>();
-//if (locOptions != null) app.UseRequestLocalization(locOptions.Value);
+
+
 //获取远程真实ip,如果不是nginx代理部署可以不要
 app.UseMiddleware<RealIpMiddleware>();
 //处理访问不存在的接口

@@ -1,14 +1,17 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Ape.Volo.Api.Controllers.Base;
-using Ape.Volo.Common;
 using Ape.Volo.Common.Extensions;
 using Ape.Volo.Common.Helper;
 using Ape.Volo.Common.Model;
-using Ape.Volo.IBusiness.Dto.Permission;
-using Ape.Volo.IBusiness.Interface.Permission;
-using Ape.Volo.IBusiness.QueryModel;
-using Ape.Volo.IBusiness.RequestModel;
+using Ape.Volo.Core;
+using Ape.Volo.IBusiness.Permission;
+using Ape.Volo.SharedModel.Dto.Core.Permission;
+using Ape.Volo.SharedModel.Queries.Common;
+using Ape.Volo.SharedModel.Queries.Permission;
+using Ape.Volo.ViewModel.Core.Permission.Menu;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ape.Volo.Api.Controllers.Permission;
@@ -16,7 +19,7 @@ namespace Ape.Volo.Api.Controllers.Permission;
 /// <summary>
 /// 菜单管理
 /// </summary>
-[Area("菜单管理")]
+[Area("Area.MenuManagement")]
 [Route("/api/menu", Order = 4)]
 public class MenusController : BaseApiController
 {
@@ -44,7 +47,8 @@ public class MenusController : BaseApiController
     /// <returns></returns>
     [HttpPost]
     [Route("create")]
-    [Description("创建")]
+    [Description("Sys.Create")]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Create(
         [FromBody] CreateUpdateMenuDto createUpdateMenuDto)
     {
@@ -65,7 +69,8 @@ public class MenusController : BaseApiController
     /// <returns></returns>
     [HttpPut]
     [Route("edit")]
-    [Description("编辑")]
+    [Description("Sys.Edit")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> Update(
         [FromBody] CreateUpdateMenuDto createUpdateMenuDto)
     {
@@ -86,7 +91,8 @@ public class MenusController : BaseApiController
     /// <returns></returns>
     [HttpDelete]
     [Route("delete")]
-    [Description("删除")]
+    [Description("Sys.Delete")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Delete([FromBody] IdCollection idCollection)
     {
         if (!ModelState.IsValid)
@@ -104,8 +110,9 @@ public class MenusController : BaseApiController
     /// </summary>
     /// <returns></returns>
     [HttpGet]
-    [Description("构建菜单")]
+    [Description("Action.BuildLoginMenu")]
     [Route("build")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<MenuVo>))]
     public async Task<ActionResult> Build()
     {
         var menuVos = await _menuService.BuildTreeAsync(App.HttpUser.Id);
@@ -118,8 +125,9 @@ public class MenusController : BaseApiController
     /// <param name="pid">父级ID</param>
     /// <returns></returns>
     [HttpGet]
-    [Description("子菜单")]
+    [Description("Action.GetSubMenu")]
     [Route("lazy")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<MenuVo>))]
     public async Task<ActionResult<object>> GetMenuLazy(long pid)
     {
         if (pid.IsNullOrEmpty())
@@ -137,12 +145,13 @@ public class MenusController : BaseApiController
     /// <param name="menuQueryCriteria"></param>
     /// <returns></returns>
     [HttpGet]
-    [Description("查询")]
+    [Description("Sys.Query")]
     [Route("query")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm<List<MenuVo>>))]
     public async Task<ActionResult> Query(MenuQueryCriteria menuQueryCriteria)
     {
         var menuList = await _menuService.QueryAsync(menuQueryCriteria);
-        return JsonContent(menuList, new Pagination() { TotalElements = menuList.Count });
+        return JsonContent(menuList, new Pagination { TotalElements = menuList.Count });
     }
 
 
@@ -152,8 +161,9 @@ public class MenusController : BaseApiController
     /// <param name="menuQueryCriteria"></param>
     /// <returns></returns>
     [HttpGet]
-    [Description("导出")]
+    [Description("Sys.Export")]
     [Route("download")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FileContentResult))]
     public async Task<ActionResult> Download(MenuQueryCriteria menuQueryCriteria)
     {
         var menuExports = await _menuService.DownloadAsync(menuQueryCriteria);
@@ -170,8 +180,9 @@ public class MenusController : BaseApiController
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpGet]
-    [Description("获取同级、父级菜单")]
+    [Description("Action.GetSiblingAndParentMenus")]
     [Route("superior")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<MenuVo>))]
     public async Task<ActionResult<object>> GetSuperior(long id)
     {
         if (id.IsNullOrEmpty())
@@ -184,15 +195,11 @@ public class MenusController : BaseApiController
     }
 
     [HttpGet]
-    [Description("获取所有子级菜单ID")]
+    [Description("Action.GetAllSubMenu")]
     [Route("child")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<long>))]
     public async Task<ActionResult> GetChild(long id)
     {
-        if (id.IsNullOrEmpty())
-        {
-            return Error("id is null");
-        }
-
         var menuIds = await _menuService.FindChildAsync(id);
         return Ok(menuIds);
     }

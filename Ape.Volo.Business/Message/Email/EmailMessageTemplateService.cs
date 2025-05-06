@@ -1,13 +1,16 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Ape.Volo.Business.Base;
-using Ape.Volo.Common;
 using Ape.Volo.Common.Extensions;
+using Ape.Volo.Common.Global;
 using Ape.Volo.Common.Model;
-using Ape.Volo.Entity.Message.Email;
-using Ape.Volo.IBusiness.Dto.Message.Email;
-using Ape.Volo.IBusiness.Interface.Message.Email;
-using Ape.Volo.IBusiness.QueryModel;
+using Ape.Volo.Core;
+using Ape.Volo.Core.Utils;
+using Ape.Volo.Entity.Core.Message.Email;
+using Ape.Volo.IBusiness.Message.Email;
+using Ape.Volo.SharedModel.Dto.Core.Message.Email;
+using Ape.Volo.SharedModel.Queries.Common;
+using Ape.Volo.SharedModel.Queries.Message;
+using Ape.Volo.ViewModel.Core.Message.Email;
 
 namespace Ape.Volo.Business.Message.Email;
 
@@ -16,14 +19,6 @@ namespace Ape.Volo.Business.Message.Email;
 /// </summary>
 public class EmailMessageTemplateService : BaseServices<EmailMessageTemplate>, IEmailMessageTemplateService
 {
-    #region 构造函数
-
-    public EmailMessageTemplateService()
-    {
-    }
-
-    #endregion
-
     #region 基础方法
 
     /// <summary>
@@ -34,9 +29,12 @@ public class EmailMessageTemplateService : BaseServices<EmailMessageTemplate>, I
     public async Task<OperateResult> CreateAsync(
         CreateUpdateEmailMessageTemplateDto createUpdateEmailMessageTemplateDto)
     {
-        var messageTemplate = await TableWhere(x => x.Name == createUpdateEmailMessageTemplateDto.Name).FirstAsync();
-        if (messageTemplate.IsNotNull())
-            return OperateResult.Error($"模板名称=>{createUpdateEmailMessageTemplateDto.Name}=>已存在!");
+        if (await TableWhere(x => x.Name == createUpdateEmailMessageTemplateDto.Name).AnyAsync())
+        {
+            return OperateResult.Error(ValidationError.IsExist(createUpdateEmailMessageTemplateDto,
+                nameof(createUpdateEmailMessageTemplateDto.Name)));
+        }
+
 
         var result = await AddAsync(App.Mapper.MapTo<EmailMessageTemplate>(createUpdateEmailMessageTemplateDto));
         return OperateResult.Result(result);
@@ -53,13 +51,16 @@ public class EmailMessageTemplateService : BaseServices<EmailMessageTemplate>, I
         var emailMessageTemplate = await TableWhere(x => x.Id == createUpdateEmailMessageTemplateDto.Id).FirstAsync();
         if (emailMessageTemplate.IsNull())
         {
-            return OperateResult.Error("数据不存在！");
+            return OperateResult.Error(ValidationError.NotExist(createUpdateEmailMessageTemplateDto,
+                LanguageKeyConstants.EmailMessageTemplate,
+                nameof(createUpdateEmailMessageTemplateDto.Id)));
         }
 
         if (emailMessageTemplate.Name != createUpdateEmailMessageTemplateDto.Name &&
             await TableWhere(j => j.Name == emailMessageTemplate.Name).AnyAsync())
         {
-            return OperateResult.Error($"模板名称=>{createUpdateEmailMessageTemplateDto.Name}=>已存在!");
+            return OperateResult.Error(ValidationError.IsExist(createUpdateEmailMessageTemplateDto,
+                nameof(createUpdateEmailMessageTemplateDto.Name)));
         }
 
         var result = await UpdateAsync(
@@ -76,7 +77,10 @@ public class EmailMessageTemplateService : BaseServices<EmailMessageTemplate>, I
     {
         var messageTemplateList = await TableWhere(x => ids.Contains(x.Id)).ToListAsync();
         if (messageTemplateList.Count <= 0)
-            return OperateResult.Error("数据不存在！");
+        {
+            return OperateResult.Error(ValidationError.NotExist());
+        }
+
         var result = await LogicDelete<EmailMessageTemplate>(x => ids.Contains(x.Id));
         return OperateResult.Result(result);
     }
@@ -87,7 +91,7 @@ public class EmailMessageTemplateService : BaseServices<EmailMessageTemplate>, I
     /// <param name="messageTemplateQueryCriteria"></param>
     /// <param name="pagination"></param>
     /// <returns></returns>
-    public async Task<List<EmailMessageTemplateDto>> QueryAsync(
+    public async Task<List<EmailMessageTemplateVo>> QueryAsync(
         EmailMessageTemplateQueryCriteria messageTemplateQueryCriteria, Pagination pagination)
     {
         var queryOptions = new QueryOptions<EmailMessageTemplate>
@@ -95,7 +99,7 @@ public class EmailMessageTemplateService : BaseServices<EmailMessageTemplate>, I
             Pagination = pagination,
             ConditionalModels = messageTemplateQueryCriteria.ApplyQueryConditionalModel(),
         };
-        return App.Mapper.MapTo<List<EmailMessageTemplateDto>>(
+        return App.Mapper.MapTo<List<EmailMessageTemplateVo>>(
             await TablePageAsync(queryOptions));
     }
 

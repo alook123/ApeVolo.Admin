@@ -3,10 +3,14 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Ape.Volo.Api.Controllers.Base;
+using Ape.Volo.Common.Extensions;
 using Ape.Volo.Common.Helper;
 using Ape.Volo.Common.Model;
-using Ape.Volo.IBusiness.Dto.Permission;
-using Ape.Volo.IBusiness.Interface.Permission;
+using Ape.Volo.IBusiness.Permission;
+using Ape.Volo.SharedModel.Dto.Core.Permission.Role;
+using Ape.Volo.ViewModel.Core.Permission;
+using Ape.Volo.ViewModel.Core.Permission.Menu;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ape.Volo.Api.Controllers.Permission;
@@ -14,7 +18,7 @@ namespace Ape.Volo.Api.Controllers.Permission;
 /// <summary>
 /// 角色授权管理
 /// </summary>
-[Area("角色授权管理")]
+[Area("Area.RoleAuthorizationManagement")]
 [Route("/api/permissions", Order = 3)]
 public class PermissionsController : BaseApiController
 {
@@ -37,32 +41,33 @@ public class PermissionsController : BaseApiController
 
     #endregion
 
-
     #region 对内接口
 
     /// <summary>
-    /// 查询Apis
+    /// 查询所有菜单
     /// </summary>
     /// <returns></returns>
     [HttpGet]
     [Route("menus/query")]
-    [Description("查询菜单")]
+    [Description("Action.GetAllMenu")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<MenuVo>))]
     public async Task<ActionResult> QueryAllMenus()
     {
         var menus = await _menuService.QueryAllAsync();
 
-        var menuTree = TreeHelper<MenuDto>.ListToTrees(menus, "Id", "ParentId", 0);
+        var menuTree = TreeHelper<MenuVo>.ListToTrees(menus, "Id", "ParentId", 0);
         return JsonContent(menuTree);
     }
 
 
     /// <summary>
-    /// 查询Apis
+    /// 查询所有Api
     /// </summary>
     /// <returns></returns>
     [HttpGet]
     [Route("apis/query")]
-    [Description("查询Apis")]
+    [Description("Action.GetAllApi")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<ApisVo>))]
     public async Task<ActionResult> QueryAllApis()
     {
         List<ApisTree> apisTree = new List<ApisTree>();
@@ -75,7 +80,7 @@ public class PermissionsController : BaseApiController
             var apisTreesTmp = new List<ApisTree>();
             foreach (var api in g.ToList())
             {
-                apisTreesTmp.Add(new ApisTree()
+                apisTreesTmp.Add(new ApisTree
                 {
                     Id = api.Id,
                     Label = api.Description,
@@ -86,7 +91,7 @@ public class PermissionsController : BaseApiController
             }
 
             index++;
-            apisTree.Add(new ApisTree()
+            apisTree.Add(new ApisTree
             {
                 Id = index,
                 Label = g.Key,
@@ -103,28 +108,41 @@ public class PermissionsController : BaseApiController
     /// <summary>
     /// 更新角色菜单关联
     /// </summary>
-    /// <param name="createUpdateRoleDto"></param>
+    /// <param name="updateRoleMenuDto"></param>
     /// <returns></returns>
     [HttpPut]
     [Route("menus/edit")]
-    [Description("编辑角色菜单")]
-    public async Task<ActionResult> UpdateRolesMenus([FromBody] CreateUpdateRoleDto createUpdateRoleDto)
+    [Description("Action.UpdateRoleMenu")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<ActionResult> UpdateRolesMenus([FromBody] UpdateRoleMenuDto updateRoleMenuDto)
     {
-        var result = await _roleService.UpdateRolesMenusAsync(createUpdateRoleDto);
+        if (!ModelState.IsValid)
+        {
+            var actionError = ModelState.GetErrors();
+            return Error(actionError);
+        }
+
+        var result = await _roleService.UpdateRolesMenusAsync(updateRoleMenuDto);
         return Ok(result);
     }
 
     /// <summary>
     /// 更新角色Api关联
     /// </summary>
-    /// <param name="createUpdateRoleDto"></param>
+    /// <param name="updateRoleApiDto"></param>
     /// <returns></returns>
     [HttpPut]
     [Route("apis/edit")]
-    [Description("编辑角色Apis")]
-    public async Task<ActionResult> UpdateRolesApis([FromBody] CreateUpdateRoleDto createUpdateRoleDto)
+    [Description("Action.UpdateRoleApi")]
+    public async Task<ActionResult> UpdateRolesApis([FromBody] UpdateRoleApiDto updateRoleApiDto)
     {
-        var result = await _roleService.UpdateRolesApisAsync(createUpdateRoleDto);
+        if (!ModelState.IsValid)
+        {
+            var actionError = ModelState.GetErrors();
+            return Error(actionError);
+        }
+
+        var result = await _roleService.UpdateRolesApisAsync(updateRoleApiDto);
         return Ok(result);
     }
 

@@ -3,24 +3,26 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
-using Ape.Volo.Api.Authentication.Jwt;
+using Ape.Volo.Api.ActionExtension.Parameter;
 using Ape.Volo.Api.Controllers.Base;
-using Ape.Volo.Common;
 using Ape.Volo.Common.Attributes;
-using Ape.Volo.Common.Caches;
-using Ape.Volo.Common.ConfigOptions;
-using Ape.Volo.Common.Exception;
+using Ape.Volo.Common.Enums;
 using Ape.Volo.Common.Extensions;
 using Ape.Volo.Common.Global;
 using Ape.Volo.Common.Helper;
 using Ape.Volo.Common.IdGenerator;
 using Ape.Volo.Common.Model;
 using Ape.Volo.Common.WebApp;
-using Ape.Volo.IBusiness.Dto.Permission;
-using Ape.Volo.IBusiness.Interface.Permission;
-using Ape.Volo.IBusiness.Interface.Queued;
-using Ape.Volo.IBusiness.Interface.System;
-using Ape.Volo.IBusiness.RequestModel;
+using Ape.Volo.Core;
+using Ape.Volo.Core.ConfigOptions;
+using Ape.Volo.Core.Utils;
+using Ape.Volo.IBusiness.Permission;
+using Ape.Volo.IBusiness.Queued;
+using Ape.Volo.IBusiness.System;
+using Ape.Volo.Infrastructure.Authentication;
+using Ape.Volo.SharedModel.Queries.Login;
+using Ape.Volo.ViewModel.Core.Permission.User;
+using Ape.Volo.ViewModel.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -30,7 +32,7 @@ namespace Ape.Volo.Api.Controllers.Auth;
 /// <summary>
 /// 授权管理
 /// </summary>
-[Area("授权管理")]
+[Area("Area.AuthorizationManagement")]
 [Route("/auth")]
 public class AuthorizationController : BaseApiController
 {
@@ -68,10 +70,11 @@ public class AuthorizationController : BaseApiController
     /// </summary>
     /// <returns></returns>
     [HttpGet]
-    [Description("获取验证码")]
+    [Description("Action.GetVerificationCode")]
     [Route("captcha")]
     [AllowAnonymous]
     [NotAudit]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CaptchaVo))]
     public async Task<ActionResult> Captcha()
     {
         var showCaptcha = true; //是否显示验证码
@@ -99,14 +102,14 @@ public class AuthorizationController : BaseApiController
         var captchaId = GlobalConstants.CachePrefix.CaptchaId +
                         IdHelper.NextId().ToString().Base64Encode();
         await App.Cache.SetAsync(captchaId, code, TimeSpan.FromMinutes(2), null);
-        var response = new
+        var captchaVo = new CaptchaVo
         {
-            img,
-            captchaId,
-            showCaptcha
+            Img = img,
+            CaptchaId = captchaId,
+            ShowCaptcha = showCaptcha
         };
 
-        return JsonContent(response);
+        return JsonContent(captchaVo);
     }
 
 
@@ -117,8 +120,9 @@ public class AuthorizationController : BaseApiController
     /// <returns></returns>
     [HttpPost]
     [Route("login")]
-    [Description("用户登录")]
+    [Description("Action.UserLogin")]
     [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(LoginResultVo))]
     public async Task<ActionResult> Login([FromBody] LoginAuthUser authUser)
     {
         if (!ModelState.IsValid)
@@ -149,7 +153,8 @@ public class AuthorizationController : BaseApiController
             {
                 // 可以实施账户锁定时，通过邮件或短信通知用户。
                 // 可以实施账户锁定后要求管理员手动解锁
-                return Error($"账户已锁定，请稍后重试。解锁时间：{loginAttempt.LockUntil:yyyy-MM-dd HH:mm:ss}");
+                return Error(App.L.R("Error.AccountLockedWithUnlockTime{0}",
+                    loginAttempt.LockUntil.ToString("yyyy-MM-dd HH:mm:ss")));
             }
         }
 
@@ -174,10 +179,21 @@ public class AuthorizationController : BaseApiController
 
         if (!App.GetOptions<SystemOptions>().IsQuickDebug && showCaptcha)
         {
+            if (authUser.Captcha.IsNullOrEmpty())
+            {
+                return Error(ValidationError.Required(authUser, nameof(authUser.Captcha)));
+            }
+
+            if (authUser.CaptchaId.IsNullOrEmpty())
+            {
+                return Error(ValidationError.Required(authUser, nameof(authUser.CaptchaId)));
+            }
+
+
             var code = await App.Cache.GetAsync<string>(authUser.CaptchaId);
             if (code.IsNullOrEmpty())
             {
-                return Error("验证码已过期!");
+                return Error(App.L.R("Error.VerificationCodeExpired"));
             }
 
             if (!code.Equals(authUser.Captcha))
@@ -190,7 +206,7 @@ public class AuthorizationController : BaseApiController
                         null);
                 }
 
-                return Error("验证码输入错误!");
+                return Error(App.L.R("Error.InvalidVerificationCode"));
             }
         }
 
@@ -205,10 +221,11 @@ public class AuthorizationController : BaseApiController
                     null);
             }
 
-            return Error("用户不存在");
+            return Error(App.L.R("Error.UserNotFound"));
         }
 
-        var password = new RsaHelper(App.GetOptions<RsaOptions>()).Decrypt(authUser.Password);
+        var rsaOptions = App.GetOptions<RsaOptions>();
+        var password = new RsaHelper(rsaOptions.PrivateKey, rsaOptions.PublicKey).Decrypt(authUser.Password);
         if (!BCryptHelper.Verify(password, userDto.Password))
         {
             if (captchaOptions.Threshold > 0)
@@ -233,7 +250,9 @@ public class AuthorizationController : BaseApiController
                     TimeSpan.FromSeconds(loginFailedLimitOptions.Lockout), null);
             }
 
-            return loginFailedLimitOptions.Enabled ? Error("密码错误,连续输入三次错误将锁定账号！") : Error("密码错误");
+            return loginFailedLimitOptions.Enabled
+                ? Error(App.L.R("Error.InvalidPasswordWithLockWarning"))
+                : Error(App.L.R("Error.InvalidPassword"));
         }
 
         if (!userDto.Enabled)
@@ -246,7 +265,7 @@ public class AuthorizationController : BaseApiController
                     null);
             }
 
-            return Error("用户未激活");
+            return Error(App.L.R("Error.UserNotActivated"));
         }
 
         await App.Cache.RemoveAsync(authUser.CaptchaId);
@@ -264,47 +283,52 @@ public class AuthorizationController : BaseApiController
     /// <returns></returns>
     [HttpPost]
     [Route("refreshToken")]
-    [Description("刷新Token")]
+    [Description("Action.RefreshToken")]
     [AllowAnonymous]
     [NotAudit]
-    public async Task<ActionResult> RefreshToken(string token = "")
+    [ParamRequired("token")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TokenVo))]
+    public async Task<ActionResult> RefreshToken(string token)
     {
-        if (token.IsNullOrEmpty()) return Error("token已丢失，请重新登录！");
-
         var tokenMd5 = token.ToMd5String16();
         var tokenBlacklist = await _tokenBlacklistService
             .TableWhere(x => x.AccessToken == tokenMd5, null, null, null, true)
             .FirstAsync();
-        if (tokenBlacklist.IsNull())
+        if (!tokenBlacklist.IsNull())
         {
-            var jwtSecurityToken = await _tokenService.ReadJwtToken(token);
-            if (jwtSecurityToken != null)
-            {
-                var userId = Convert.ToInt64(jwtSecurityToken.Claims
-                    .FirstOrDefault(s => s.Type == AuthConstants.JwtClaimTypes.Jti)?.Value);
-                var loginTime = Convert.ToInt64(jwtSecurityToken.Claims
-                    .FirstOrDefault(s => s.Type == AuthConstants.JwtClaimTypes.Iat)?.Value).TicksToDateTime();
-                var nowTime = DateTime.Now.ToLocalTime();
-                var refreshTime = loginTime.AddHours(App.GetOptions<JwtAuthOptions>().RefreshTokenExpires);
-                // 允许token刷新时间内
-                if (nowTime <= refreshTime)
-                {
-                    var netUser = await _userService.QueryByIdAsync(userId);
-                    if (netUser.IsNotNull())
-                        if (netUser.UpdateTime == null || netUser.UpdateTime < loginTime)
-                            return await LoginResult(netUser, "refresh");
-                }
-            }
+            return Error(App.L.R("Error.TokenRevoked"));
         }
 
-        return Error("token验证失败，请重新登录！");
+        var jwtSecurityToken = await _tokenService.ReadJwtToken(token);
+        if (jwtSecurityToken != null)
+        {
+            var userId = Convert.ToInt64(jwtSecurityToken.Claims
+                .FirstOrDefault(s => s.Type == AuthConstants.JwtClaimTypes.Jti)?.Value);
+            var loginTime = Convert.ToInt64(jwtSecurityToken.Claims
+                .FirstOrDefault(s => s.Type == AuthConstants.JwtClaimTypes.Iat)?.Value).TicksToDateTime();
+            var nowTime = DateTime.Now.ToLocalTime();
+            var refreshTime = loginTime.AddHours(App.GetOptions<JwtAuthOptions>().RefreshTokenExpires);
+            // 允许token刷新时间内
+            if (nowTime <= refreshTime)
+            {
+                var netUser = await _userService.QueryByIdAsync(userId);
+                if (netUser.IsNotNull())
+                    if (netUser.UpdateTime == null || netUser.UpdateTime < loginTime)
+                        return await LoginResult(netUser, "refresh");
+            }
+
+            return Error(App.L.R("Error.TokenExpired"));
+        }
+
+        return Error(App.L.R("Error.TokenParseFailed"));
     }
 
 
     [HttpGet]
     [Route("info")]
-    [Description("个人信息")]
+    [Description("Action.PersonalInfo")]
     [NotAudit]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(JwtUserVo))]
     public async Task<ActionResult> GetInfo()
     {
         var netUser = await _userService.QueryByIdAsync(App.HttpUser.Id);
@@ -320,11 +344,17 @@ public class AuthorizationController : BaseApiController
     /// </summary>
     /// <returns></returns>
     [HttpPost]
-    [Description("获取邮箱验证码")]
+    [Description("Action.GetEmailVerificationCode")]
     [Route("code/reset/email")]
+    [ParamRequired("email")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> ResetEmail(string email)
     {
-        if (!email.IsEmail()) throw new BadRequestException("请输入正确的邮箱！");
+        if (!email.IsEmail())
+        {
+            return Error(App.L.R("{0}Error.Format",
+                App.L.R("Sys.Email")));
+        }
 
         var result = await _queuedEmailService.ResetEmail(email, "EmailVerificationCode");
         return Ok(result);
@@ -337,8 +367,9 @@ public class AuthorizationController : BaseApiController
     /// <returns></returns>
     [HttpDelete]
     [Route("logout")]
-    [Description("用户登出")]
+    [Description("Action.UserLogOut")]
     [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Logout()
     {
         //清理缓存
@@ -369,8 +400,9 @@ public class AuthorizationController : BaseApiController
     /// <returns></returns>
     [HttpPost]
     [Route("swagger/login")]
-    [Description("用户登录")]
+    [Description("Action.UserLogin")]
     [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> SwaggerLogin([FromBody] SwaggerLoginAuthUser swaggerLoginAuthUser)
     {
         if (!ModelState.IsValid)
@@ -380,12 +412,25 @@ public class AuthorizationController : BaseApiController
         }
 
         var userDto = await _userService.QueryByNameAsync(swaggerLoginAuthUser.Username);
-        if (userDto == null) return Error("用户不存在");
-        var password = new RsaHelper(App.GetOptions<RsaOptions>()).Decrypt(swaggerLoginAuthUser.Password);
-        if (!BCryptHelper.Verify(password, userDto.Password))
-            return Error("密码错误");
+        if (userDto == null)
+        {
+            return Error(App.L.R("Error.UserNotFound"));
+        }
 
-        if (!userDto.Enabled) return Error("用户未激活");
+        var rsaOptions = App.GetOptions<RsaOptions>();
+        var password =
+            new RsaHelper(rsaOptions.PrivateKey, rsaOptions.PublicKey).Decrypt(swaggerLoginAuthUser.Password);
+        if (!BCryptHelper.Verify(password, userDto.Password))
+        {
+            return Error(App.L.R("Error.InvalidPassword"));
+        }
+
+
+        if (!userDto.Enabled)
+        {
+            return Error(App.L.R("Error.UserNotActivated"));
+        }
+
         App.HttpContext.Session.SetInt32("swagger-key", 1);
         return Ok(OperateResult.Success());
     }
@@ -401,7 +446,7 @@ public class AuthorizationController : BaseApiController
     /// <param name="userDto"></param>
     /// <param name="type">login:登录,refresh:刷新token</param>
     /// <returns></returns>
-    private async Task<ActionResult> LoginResult(UserDto userDto, string type)
+    private async Task<ActionResult> LoginResult(UserVo userDto, string type)
     {
         var permissionIdentifierList = new List<string>();
         var refresh = true;
@@ -425,15 +470,16 @@ public class AuthorizationController : BaseApiController
         switch (type)
         {
             case "login":
-                var response = new
+                var response = new LoginResultVo
                 {
-                    user = jwtUserVo, token
+                    JwtUserVo = jwtUserVo,
+                    TokenVo = token
                 };
                 return JsonContent(response);
             case "refresh":
                 return JsonContent(token);
             default:
-                return Ok(OperateResult.Error("参数错误！"));
+                return Ok(OperateResult.Error("Parameter error."));
         }
     }
 

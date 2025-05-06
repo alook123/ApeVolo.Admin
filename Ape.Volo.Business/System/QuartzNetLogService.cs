@@ -1,16 +1,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Ape.Volo.Business.Base;
-using Ape.Volo.Common;
 using Ape.Volo.Common.Extensions;
-using Ape.Volo.Common.Global;
 using Ape.Volo.Common.Model;
-using Ape.Volo.Entity.System;
-using Ape.Volo.IBusiness.Dto.System;
-using Ape.Volo.IBusiness.ExportModel.System;
-using Ape.Volo.IBusiness.Interface.System;
-using Ape.Volo.IBusiness.QueryModel;
+using Ape.Volo.Core;
+using Ape.Volo.Entity.Core.System.QuartzNet;
+using Ape.Volo.IBusiness.System;
+using Ape.Volo.SharedModel.Queries.Common;
+using Ape.Volo.SharedModel.Queries.System;
+using Ape.Volo.ViewModel.Core.System.QuartzNet;
+using Ape.Volo.ViewModel.Report.System;
 
 namespace Ape.Volo.Business.System;
 
@@ -19,23 +18,26 @@ namespace Ape.Volo.Business.System;
 /// </summary>
 public class QuartzNetLogService : BaseServices<QuartzNetLog>, IQuartzNetLogService
 {
-    #region 构造函数
-
-    public QuartzNetLogService()
-    {
-    }
-
-    #endregion
-
     #region 基础方法
 
+    /// <summary>
+    /// 创建
+    /// </summary>
+    /// <param name="quartzNetLog"></param>
+    /// <returns></returns>
     public async Task<OperateResult> CreateAsync(QuartzNetLog quartzNetLog)
     {
         var result = await AddAsync(quartzNetLog);
         return OperateResult.Result(result);
     }
 
-    public async Task<List<QuartzNetLogDto>> QueryAsync(QuartzNetLogQueryCriteria quartzNetLogQueryCriteria,
+    /// <summary>
+    /// 查询
+    /// </summary>
+    /// <param name="quartzNetLogQueryCriteria"></param>
+    /// <param name="pagination"></param>
+    /// <returns></returns>
+    public async Task<List<QuartzNetLogVo>> QueryAsync(QuartzNetLogQueryCriteria quartzNetLogQueryCriteria,
         Pagination pagination)
     {
         var queryOptions = new QueryOptions<QuartzNetLog>
@@ -43,16 +45,22 @@ public class QuartzNetLogService : BaseServices<QuartzNetLog>, IQuartzNetLogServ
             Pagination = pagination,
             ConditionalModels = quartzNetLogQueryCriteria.ApplyQueryConditionalModel()
         };
-        return App.Mapper.MapTo<List<QuartzNetLogDto>>(
+        return App.Mapper.MapTo<List<QuartzNetLogVo>>(
             await TablePageAsync(queryOptions));
     }
 
+    /// <summary>
+    /// 下载
+    /// </summary>
+    /// <param name="quartzNetLogQueryCriteria"></param>
+    /// <returns></returns>
     public async Task<List<ExportBase>> DownloadAsync(QuartzNetLogQueryCriteria quartzNetLogQueryCriteria)
     {
         var quartzNetLogs = await TableWhere(quartzNetLogQueryCriteria.ApplyQueryConditionalModel()).ToListAsync();
         List<ExportBase> quartzNetLogExports = new List<ExportBase>();
-        quartzNetLogExports.AddRange(quartzNetLogs.Select(x => new QuartzNetLogExport()
+        quartzNetLogExports.AddRange(quartzNetLogs.Select(x => new QuartzNetLogExport
         {
+            Id = x.Id,
             TaskId = x.TaskId,
             TaskName = x.TaskName,
             TaskGroup = x.TaskGroup,
@@ -62,7 +70,7 @@ public class QuartzNetLogService : BaseServices<QuartzNetLog>, IQuartzNetLogServ
             ExceptionDetail = x.ExceptionDetail,
             ExecutionDuration = x.ExecutionDuration,
             RunParams = x.RunParams,
-            IsSuccess = x.IsSuccess ? BoolState.True : BoolState.False,
+            IsSuccess = x.IsSuccess,
             CreateTime = x.CreateTime
         }));
         return quartzNetLogExports;

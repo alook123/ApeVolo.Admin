@@ -1,13 +1,16 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Ape.Volo.Api.Controllers.Base;
 using Ape.Volo.Common.Extensions;
 using Ape.Volo.Common.Helper;
 using Ape.Volo.Common.Model;
-using Ape.Volo.IBusiness.Dto.System;
-using Ape.Volo.IBusiness.Interface.System;
-using Ape.Volo.IBusiness.QueryModel;
-using Ape.Volo.IBusiness.RequestModel;
+using Ape.Volo.IBusiness.System;
+using Ape.Volo.SharedModel.Dto.Core.System;
+using Ape.Volo.SharedModel.Queries.Common;
+using Ape.Volo.SharedModel.Queries.System;
+using Ape.Volo.ViewModel.Core.System;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ape.Volo.Api.Controllers.System;
@@ -15,7 +18,7 @@ namespace Ape.Volo.Api.Controllers.System;
 /// <summary>
 /// 应用密钥管理
 /// </summary>
-[Area("应用密钥管理")]
+[Area("Area.ApplicationKeyManagement")]
 [Route("/api/appSecret", Order = 11)]
 public class AppSecretController : BaseApiController
 {
@@ -43,7 +46,8 @@ public class AppSecretController : BaseApiController
     /// <returns></returns>
     [HttpPost]
     [Route("create")]
-    [Description("创建")]
+    [Description("Sys.Create")]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Create(
         [FromBody] CreateUpdateAppSecretDto createUpdateAppSecretDto)
     {
@@ -64,7 +68,8 @@ public class AppSecretController : BaseApiController
     /// <returns></returns>
     [HttpPut]
     [Route("edit")]
-    [Description("编辑")]
+    [Description("Sys.Edit")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> Update(
         [FromBody] CreateUpdateAppSecretDto createUpdateAppSecretDto)
     {
@@ -85,7 +90,8 @@ public class AppSecretController : BaseApiController
     /// <returns></returns>
     [HttpDelete]
     [Route("delete")]
-    [Description("删除")]
+    [Description("Sys.Delete")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Delete([FromBody] IdCollection idCollection)
     {
         if (!ModelState.IsValid)
@@ -106,7 +112,8 @@ public class AppSecretController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("query")]
-    [Description("查询")]
+    [Description("Sys.Query")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm<List<AppSecretVo>>))]
     public async Task<ActionResult> Query(AppsecretQueryCriteria appsecretQueryCriteria,
         Pagination pagination)
     {
@@ -122,8 +129,9 @@ public class AppSecretController : BaseApiController
     /// <param name="appsecretQueryCriteria"></param>
     /// <returns></returns>
     [HttpGet]
-    [Description("导出")]
+    [Description("Sys.Export")]
     [Route("download")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FileContentResult))]
     public async Task<ActionResult> Download(AppsecretQueryCriteria appsecretQueryCriteria)
     {
         var appSecretExports = await _appSecretService.DownloadAsync(appsecretQueryCriteria);

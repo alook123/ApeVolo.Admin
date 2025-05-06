@@ -2,7 +2,9 @@ using System.ComponentModel;
 using System.Threading.Tasks;
 using Ape.Volo.Api.Controllers.Base;
 using Ape.Volo.Common.Attributes;
-using Ape.Volo.IBusiness.Interface.Monitor;
+using Ape.Volo.IBusiness.Monitor;
+using Ape.Volo.ViewModel.ServerInfo;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ape.Volo.Api.Controllers.Monitor;
@@ -10,7 +12,7 @@ namespace Ape.Volo.Api.Controllers.Monitor;
 /// <summary>
 /// 服务器管理
 /// </summary>
-[Area("服务器管理")]
+[Area("Area.ServerResourceManagement")]
 [Route("/api/service", Order = 16)]
 public class ServerResourcesController : BaseApiController
 {
@@ -25,8 +27,9 @@ public class ServerResourcesController : BaseApiController
 
     [HttpGet]
     [Route("resources/info")]
-    [Description("服务器信息")]
+    [Description("Action.ServerResourceInfo")]
     [NotAudit]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ServerResourcesInfo))]
     public async Task<ActionResult> Query()
     {
         var resourcesInfo = await _serverResourcesService.Query();

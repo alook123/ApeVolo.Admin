@@ -1,14 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Ape.Volo.Api.Controllers.Base;
 using Ape.Volo.Common.Extensions;
 using Ape.Volo.Common.Helper;
 using Ape.Volo.Common.Model;
-using Ape.Volo.IBusiness.Dto.Permission;
-using Ape.Volo.IBusiness.Interface.Permission;
-using Ape.Volo.IBusiness.QueryModel;
-using Ape.Volo.IBusiness.RequestModel;
+using Ape.Volo.Core;
+using Ape.Volo.IBusiness.Permission;
+using Ape.Volo.SharedModel.Dto.Core.Permission.User;
+using Ape.Volo.SharedModel.Queries.Common;
+using Ape.Volo.SharedModel.Queries.Permission;
+using Ape.Volo.ViewModel.Core.Permission.User;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,7 +20,7 @@ namespace Ape.Volo.Api.Controllers.Permission;
 /// <summary>
 /// 用户管理
 /// </summary>
-[Area("用户管理")]
+[Area("Area.UserManagement")]
 [Route("/api/user", Order = 1)]
 public class UserController : BaseApiController
 {
@@ -44,8 +47,9 @@ public class UserController : BaseApiController
     /// <param name="createUpdateUserDto"></param>
     /// <returns></returns>
     [HttpPost]
-    [Description("创建")]
+    [Description("Sys.Create")]
     [Route("create")]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Create([FromBody] CreateUpdateUserDto createUpdateUserDto)
     {
         if (!ModelState.IsValid)
@@ -66,8 +70,9 @@ public class UserController : BaseApiController
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     [HttpPut]
-    [Description("编辑")]
+    [Description("Sys.Edit")]
     [Route("edit")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> Update([FromBody] CreateUpdateUserDto createUpdateUserDto)
     {
         if (!ModelState.IsValid)
@@ -86,8 +91,9 @@ public class UserController : BaseApiController
     /// <param name="idCollection"></param>
     /// <returns></returns>
     [HttpDelete]
-    [Description("删除")]
+    [Description("Sys.Delete")]
     [Route("delete")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Delete([FromBody] IdCollection idCollection)
     {
         if (!ModelState.IsValid)
@@ -102,7 +108,8 @@ public class UserController : BaseApiController
 
     [HttpPut]
     [Route("update/center")]
-    [Description("更新个人信息")]
+    [Description("Action.UpdatePersonalInfo")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> UpdateCenterAsync([FromBody] UpdateUserCenterDto updateUserCenterDto)
     {
         if (!ModelState.IsValid)
@@ -117,7 +124,8 @@ public class UserController : BaseApiController
 
     [HttpPost]
     [Route("update/password")]
-    [Description("更新密码")]
+    [Description("Action.UpdatePassword")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> UpdatePasswordAsync([FromBody] UpdateUserPassDto updateUserPassDto)
     {
         if (!ModelState.IsValid)
@@ -132,7 +140,8 @@ public class UserController : BaseApiController
 
     [HttpPost]
     [Route("update/email")]
-    [Description("更新邮箱")]
+    [Description("Action.UpdateEmail")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> UpdateEmail([FromBody] UpdateUserEmailDto updateUserEmailDto)
     {
         if (!ModelState.IsValid)
@@ -147,12 +156,13 @@ public class UserController : BaseApiController
 
     [HttpPost, HttpOptions]
     [Route("update/avatar")]
-    [Description("更新头像")]
+    [Description("Action.UpdateAvatar")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> UpdateAvatar([FromForm] IFormFile avatar) //多文件使用  IFormFileCollection
     {
         if (avatar.IsNull())
         {
-            return Error();
+            return Error(App.L.R("{0}required", "avatar"));
         }
 
         var result = await _userService.UpdateAvatarAsync(avatar);
@@ -167,8 +177,10 @@ public class UserController : BaseApiController
     /// <param name="pagination"></param>
     /// <returns></returns>
     [HttpGet]
-    [Description("查询")]
+    [Description("Sys.Query")]
     [Route("query")]
+    [Produces("application/json")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm<List<UserVo>>))]
     public async Task<ActionResult> Query(UserQueryCriteria userQueryCriteria,
         Pagination pagination)
     {
@@ -182,8 +194,9 @@ public class UserController : BaseApiController
     /// <param name="userQueryCriteria"></param>
     /// <returns></returns>
     [HttpGet]
-    [Description("导出")]
+    [Description("Sys.Export")]
     [Route("download")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FileContentResult))]
     public async Task<ActionResult> Download(UserQueryCriteria userQueryCriteria)
     {
         var userExports = await _userService.DownloadAsync(userQueryCriteria);

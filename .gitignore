@@ -11,6 +11,10 @@
 *.sln.docstates
 *.log
 *.DB
+.DS_Store
+DemoFilter.cs
+Ape.Volo.*.xml
+
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -83,7 +87,6 @@ StyleCopReport.xml
 *.tmp
 *.tmp_proj
 *_wpftmp.csproj
-*.Logs
 *.vspscc
 *.vssscc
 .builds

@@ -1,11 +1,14 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Ape.Volo.Api.Controllers.Base;
 using Ape.Volo.Common.Extensions;
 using Ape.Volo.Common.Helper;
 using Ape.Volo.Common.Model;
-using Ape.Volo.IBusiness.Interface.Monitor;
-using Ape.Volo.IBusiness.RequestModel;
+using Ape.Volo.Common.WebApp;
+using Ape.Volo.IBusiness.Monitor;
+using Ape.Volo.SharedModel.Queries.Common;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ape.Volo.Api.Controllers.Monitor;
@@ -33,7 +36,8 @@ public class OnlineUserController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("query")]
-    [Description("查询")]
+    [Description("Sys.Query")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<LoginUserInfo>))]
     public async Task<ActionResult> Query(Pagination pagination)
     {
         var onlineUserList = await _onlineUserService.QueryAsync(pagination);
@@ -49,6 +53,7 @@ public class OnlineUserController : BaseApiController
     [HttpDelete]
     [Route("out")]
     [Description("强退用户")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> DropOut([FromBody] IdCollectionString idCollection)
     {
         if (!ModelState.IsValid)
@@ -67,8 +72,9 @@ public class OnlineUserController : BaseApiController
     /// </summary>
     /// <returns></returns>
     [HttpGet]
-    [Description("导出")]
+    [Description("Sys.Export")]
     [Route("download")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FileContentResult))]
     public async Task<ActionResult> Download()
     {
         var appSecretExports = await _onlineUserService.DownloadAsync();

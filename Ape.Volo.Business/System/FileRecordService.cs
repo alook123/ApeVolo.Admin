@@ -3,40 +3,39 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Ape.Volo.Business.Base;
-using Ape.Volo.Common;
 using Ape.Volo.Common.Extensions;
+using Ape.Volo.Common.Global;
 using Ape.Volo.Common.Helper;
 using Ape.Volo.Common.IdGenerator;
 using Ape.Volo.Common.Model;
-using Ape.Volo.Entity.System;
-using Ape.Volo.IBusiness.Dto.System;
-using Ape.Volo.IBusiness.ExportModel.System;
-using Ape.Volo.IBusiness.Interface.System;
-using Ape.Volo.IBusiness.QueryModel;
+using Ape.Volo.Core;
+using Ape.Volo.Core.Utils;
+using Ape.Volo.Entity.Core.System;
+using Ape.Volo.IBusiness.System;
+using Ape.Volo.SharedModel.Dto.Core.System;
+using Ape.Volo.SharedModel.Queries.Common;
+using Ape.Volo.SharedModel.Queries.System;
+using Ape.Volo.ViewModel.Core.System;
+using Ape.Volo.ViewModel.Report.System;
 using Microsoft.AspNetCore.Http;
 
 namespace Ape.Volo.Business.System;
 
+/// <summary>
+/// 文件记录服务
+/// </summary>
 public class FileRecordService : BaseServices<FileRecord>, IFileRecordService
 {
-    #region 构造函数
-
-    public FileRecordService()
-    {
-    }
-
-    #endregion
-
     #region 基础方法
 
-    public async Task<OperateResult> CreateAsync(string description, IFormFile file)
+    /// <summary>
+    /// 创建
+    /// </summary>
+    /// <param name="createUpdateFileRecordDto"></param>
+    /// <param name="file"></param>
+    /// <returns></returns>
+    public async Task<OperateResult> CreateAsync(CreateUpdateFileRecordDto createUpdateFileRecordDto, IFormFile file)
     {
-        if (await TableWhere(x => x.Description == description).AnyAsync())
-        {
-            return OperateResult.Error($"文件描述=>{description}=>已存在!");
-        }
-
         var fileExtensionName = FileHelper.GetExtensionName(file.FileName);
         var fileTypeName = FileHelper.GetFileTypeName(fileExtensionName);
         var fileTypeNameEn = FileHelper.GetFileTypeNameEn(fileTypeName);
@@ -62,7 +61,7 @@ public class FileRecordService : BaseServices<FileRecord>, IFileRecordService
         relativePath = "/" + relativePath.Replace("\\", "/");
         var fileRecord = new FileRecord
         {
-            Description = description,
+            Description = createUpdateFileRecordDto.Description,
             OriginalName = file.FileName,
             NewName = fileName,
             FilePath = relativePath,
@@ -75,19 +74,20 @@ public class FileRecordService : BaseServices<FileRecord>, IFileRecordService
         return OperateResult.Result(result);
     }
 
+    /// <summary>
+    /// 更新
+    /// </summary>
+    /// <param name="createUpdateFileRecordDto"></param>
+    /// <returns></returns>
     public async Task<OperateResult> UpdateAsync(CreateUpdateFileRecordDto createUpdateFileRecordDto)
     {
         //取出待更新数据
         var oldFileRecord = await TableWhere(x => x.Id == createUpdateFileRecordDto.Id).FirstAsync();
         if (oldFileRecord.IsNull())
         {
-            return OperateResult.Error("数据不存在！");
-        }
-
-        if (oldFileRecord.Description != createUpdateFileRecordDto.Description &&
-            await TableWhere(x => x.Description == createUpdateFileRecordDto.Description).AnyAsync())
-        {
-            return OperateResult.Error($"文件描述=>{createUpdateFileRecordDto.Description}=>已存在!");
+            return OperateResult.Error(ValidationError.NotExist(createUpdateFileRecordDto,
+                LanguageKeyConstants.FileRecord,
+                nameof(createUpdateFileRecordDto.Id)));
         }
 
         var fileRecord = App.Mapper.MapTo<FileRecord>(createUpdateFileRecordDto);
@@ -95,9 +95,19 @@ public class FileRecordService : BaseServices<FileRecord>, IFileRecordService
         return OperateResult.Result(result);
     }
 
+    /// <summary>
+    /// 删除
+    /// </summary>
+    /// <param name="ids"></param>
+    /// <returns></returns>
     public async Task<OperateResult> DeleteAsync(HashSet<long> ids)
     {
         var appSecretList = await TableWhere(x => ids.Contains(x.Id)).ToListAsync();
+        if (appSecretList.Count == 0)
+        {
+            return OperateResult.Error(ValidationError.NotExist());
+        }
+
         await LogicDelete<FileRecord>(x => ids.Contains(x.Id));
         foreach (var appSecret in appSecretList)
         {
@@ -107,7 +117,13 @@ public class FileRecordService : BaseServices<FileRecord>, IFileRecordService
         return OperateResult.Success();
     }
 
-    public async Task<List<FileRecordDto>> QueryAsync(FileRecordQueryCriteria fileRecordQueryCriteria,
+    /// <summary>
+    /// 查询
+    /// </summary>
+    /// <param name="fileRecordQueryCriteria"></param>
+    /// <param name="pagination"></param>
+    /// <returns></returns>
+    public async Task<List<FileRecordVo>> QueryAsync(FileRecordQueryCriteria fileRecordQueryCriteria,
         Pagination pagination)
     {
         var queryOptions = new QueryOptions<FileRecord>
@@ -115,17 +131,23 @@ public class FileRecordService : BaseServices<FileRecord>, IFileRecordService
             Pagination = pagination,
             ConditionalModels = fileRecordQueryCriteria.ApplyQueryConditionalModel()
         };
-        return App.Mapper.MapTo<List<FileRecordDto>>(
+        return App.Mapper.MapTo<List<FileRecordVo>>(
             await TablePageAsync(queryOptions));
     }
 
+    /// <summary>
+    /// 下载
+    /// </summary>
+    /// <param name="fileRecordQueryCriteria"></param>
+    /// <returns></returns>
     public async Task<List<ExportBase>> DownloadAsync(FileRecordQueryCriteria fileRecordQueryCriteria)
     {
         var conditionalModels = fileRecordQueryCriteria.ApplyQueryConditionalModel();
         var fileRecords = await TableWhere(conditionalModels).ToListAsync();
         List<ExportBase> fileRecordExports = new List<ExportBase>();
-        fileRecordExports.AddRange(fileRecords.Select(x => new FileRecordExport()
+        fileRecordExports.AddRange(fileRecords.Select(x => new FileRecordExport
         {
+            Id = x.Id,
             Description = x.Description,
             ContentType = x.ContentType,
             ContentTypeName = x.ContentTypeName,

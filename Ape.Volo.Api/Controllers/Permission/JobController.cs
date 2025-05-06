@@ -1,13 +1,16 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Ape.Volo.Api.Controllers.Base;
 using Ape.Volo.Common.Extensions;
 using Ape.Volo.Common.Helper;
 using Ape.Volo.Common.Model;
-using Ape.Volo.IBusiness.Dto.Permission;
-using Ape.Volo.IBusiness.Interface.Permission;
-using Ape.Volo.IBusiness.QueryModel;
-using Ape.Volo.IBusiness.RequestModel;
+using Ape.Volo.IBusiness.Permission;
+using Ape.Volo.SharedModel.Dto.Core.Permission;
+using Ape.Volo.SharedModel.Queries.Common;
+using Ape.Volo.SharedModel.Queries.Permission;
+using Ape.Volo.ViewModel.Core.Permission.Job;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ape.Volo.Api.Controllers.Permission;
@@ -15,7 +18,7 @@ namespace Ape.Volo.Api.Controllers.Permission;
 /// <summary>
 /// 岗位管理
 /// </summary>
-[Area("岗位管理")]
+[Area("Area.JobManagement")]
 [Route("/api/job", Order = 6)]
 public class JobController : BaseApiController
 {
@@ -43,7 +46,8 @@ public class JobController : BaseApiController
     /// <returns></returns>
     [HttpPost]
     [Route("create")]
-    [Description("创建")]
+    [Description("Sys.Create")]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Create(
         [FromBody] CreateUpdateJobDto createUpdateJobDto)
     {
@@ -64,7 +68,8 @@ public class JobController : BaseApiController
     /// <returns></returns>
     [HttpPut]
     [Route("edit")]
-    [Description("编辑")]
+    [Description("Sys.Edit")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> Update(
         [FromBody] CreateUpdateJobDto createUpdateJobDto)
     {
@@ -85,7 +90,8 @@ public class JobController : BaseApiController
     /// <returns></returns>
     [HttpDelete]
     [Route("delete")]
-    [Description("删除")]
+    [Description("Sys.Delete")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm))]
     public async Task<ActionResult> Delete([FromBody] IdCollection idCollection)
     {
         if (!ModelState.IsValid)
@@ -106,18 +112,13 @@ public class JobController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("query")]
-    [Description("查询")]
+    [Description("Sys.Query")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ActionResultVm<List<JobVo>>))]
     public async Task<ActionResult> Query(JobQueryCriteria jobQueryCriteria, Pagination pagination)
     {
         var jobList = await _jobService.QueryAsync(jobQueryCriteria, pagination);
 
         return JsonContent(jobList, pagination);
-        // return JsonContent(new ActionResultVm<JobDto>
-        // {
-        //     Content = jobList,
-        //     TotalElements = pagination.TotalElements,
-        //     TotalPages = pagination.TotalPages
-        // });
     }
 
     /// <summary>
@@ -126,7 +127,8 @@ public class JobController : BaseApiController
     /// <returns></returns>
     [HttpGet]
     [Route("queryAll")]
-    [Description("查询全部")]
+    [Description("Action.GetAllJobs")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<JobVo>))]
     public async Task<ActionResult> QueryAll()
     {
         var jobList = await _jobService.QueryAllAsync();
@@ -140,8 +142,9 @@ public class JobController : BaseApiController
     /// <param name="jobQueryCriteria"></param>
     /// <returns></returns>
     [HttpGet]
-    [Description("导出")]
+    [Description("Sys.Export")]
     [Route("download")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FileContentResult))]
     public async Task<ActionResult> Download(JobQueryCriteria jobQueryCriteria)
     {
         var jobExports = await _jobService.DownloadAsync(jobQueryCriteria);
